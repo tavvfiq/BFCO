@@ -21,6 +21,21 @@ RE::BGSAction* RightAttack = nullptr;
 RE::BGSAction* PowerAttack = nullptr;
 RE::BGSAction* Bash = nullptr;
 
+// Cached TESIdleForms for performance
+RE::TESIdleForm* PowerNormal = nullptr;
+RE::TESIdleForm* AutoAA = nullptr;
+RE::TESIdleForm* AutoAABow = nullptr;
+RE::TESIdleForm* PowerH2H = nullptr;
+RE::TESIdleForm* PowerBash = nullptr;
+RE::TESIdleForm* SprintPower = nullptr;
+RE::TESIdleForm* ComboAttackE = nullptr;
+RE::TESIdleForm* BlockStart = nullptr;
+RE::TESIdleForm* BashStart = nullptr;
+RE::TESIdleForm* BashRelease = nullptr;
+RE::TESIdleForm* BlockRelease = nullptr;
+RE::TESIdleForm* Dodge = nullptr;
+RE::TESIdleForm* TailSmash = nullptr;
+
 std::set<uint32_t> pressedKeys_K; // Teclado
 std::set<uint32_t> pressedKeys_M; // Mouse
 std::set<uint32_t> pressedKeys_G; // Gamepad
@@ -306,9 +321,6 @@ RE::BSEventNotifyControl AttackStateManager::ProcessEvent(RE::InputEvent* const*
         if (device == RE::INPUT_DEVICE::kKeyboard) isLAttackBtnPressed = (keyCode == Settings::AttackKeyLeft_k);
         else if (device == RE::INPUT_DEVICE::kMouse) isLAttackBtnPressed = (keyCode == Settings::AttackKeyLeft_m);
         else if (device == RE::INPUT_DEVICE::kGamepad) isLAttackBtnPressed = (keyCode == Settings::AttackKeyLeft_g);
-
-       
-       
            
         int isStrong = false;
         int canAttack = false;
@@ -316,27 +328,6 @@ RE::BSEventNotifyControl AttackStateManager::ProcessEvent(RE::InputEvent* const*
         player->GetGraphVariableInt("BFCO_IsPlayerInputOK", canAttack);
         player->GetGraphVariableInt("ADTF_ShouldDelay", isStrong);
         float currentStamina = player->AsActorValueOwner()->GetActorValue(RE::ActorValue::kStamina);
-        auto* PowerNormal = GetIdleByFormID(0x8C5, pluginName);
-        auto* AutoAA = GetIdleByFormID(0x83A, pluginName);
-        auto* AutoAABow = GetIdleByFormID(0x8FA, pluginName);
-        auto* PowerH2H = GetIdleByFormID(0x839, pluginName);
-        auto* PowerBash = GetIdleByFormID(0x8C0, pluginName);
-        auto* SprintPower = GetIdleByFormID(0x8BE, pluginName);
-        auto* ComboAttackE = GetIdleByFormID(0x8BF, pluginName);
-        auto* BlockStart = GetIdleByFormID(0x13217, skyrim);
-        auto* BashStart = GetIdleByFormID(0x1B417, skyrim);
-        auto* BashRelease = GetIdleByFormID(0x1457A, skyrim);
-        auto* BlockRelease = GetIdleByFormID(0x13ACA, skyrim);
-        auto* Teste = GetIdleByFormID(0x13384, skyrim);
-        auto* Teste2 = GetIdleByFormID(0xE8456, skyrim);
-        auto* Idle = GetActionByFormID(0x13002, skyrim);
-        auto* Dodge = GetIdleByFormID(0x935, pluginName);
-        auto* TailSmash = GetIdleByFormID(0x11ED35, dragon);
-        //auto* TailSmash = GetIdleByFormID(0x11ED35, dragon);
-        int isDodging = 0;
-        int revocery = 0;
-
-        
      
          if (isBlockBtnPressed) {
             if (Settings::disableDualblock) {
@@ -415,7 +406,7 @@ RE::BSEventNotifyControl AttackStateManager::ProcessEvent(RE::InputEvent* const*
                        PerformAction(NormalAttack, player);
                    }
                    else {
-                       if (currentStamina > 0) {
+                       if (currentStamina > 0 && BashStart) {
                            PlayIdleAnimation(player, BashStart);
                        }
                        else {
@@ -430,12 +421,12 @@ RE::BSEventNotifyControl AttackStateManager::ProcessEvent(RE::InputEvent* const*
                    if (Settings::bPowerAttackLMB > 0) {
                        player->SetGraphVariableInt("NEW_BFCO_IsNormalAttacking", 1);
                        player->SetGraphVariableInt("NEW_BFCO_IsPowerAttacking", 0);
-                       if (AutoAABow->conditions.IsTrue(player, player)) {
+                       if (AutoAABow && AutoAABow->conditions.IsTrue(player, player)) {
                            logger::info("AutoAA triggered by 1held condition is true.");
                            player->NotifyAnimationGraph("MCO_EndAnimation");
                            PlayIdleAnimation(player, AutoAABow);
                        }
-                       else if (AutoAA->conditions.IsTrue(player, player)) {
+                       else if (AutoAA && AutoAA->conditions.IsTrue(player, player)) {
                            logger::info("AutoAA condition is true.");
                            player->NotifyAnimationGraph("MCO_EndAnimation");
                            PlayIdleAnimation(player, AutoAA);
@@ -494,20 +485,20 @@ RE::BSEventNotifyControl AttackStateManager::ProcessEvent(RE::InputEvent* const*
                         return RE::BSEventNotifyControl::kContinue;
                     }
 
-                    if (SprintPower->conditions.IsTrue(player, player)) {
+                    if (SprintPower && SprintPower->conditions.IsTrue(player, player)) {
                         logger::info("SprintPower condition is true.");
                         player->NotifyAnimationGraph("MCO_EndAnimation");
                         PlayIdleAnimation(player, SprintPower);
-                    } else if (!Settings::disableMStaBash && PowerBash->conditions.IsTrue(player, player)) {
+                    } else if (!Settings::disableMStaBash && PowerBash && PowerBash->conditions.IsTrue(player, player)) {
                         logger::info("PowerBash condition is true.");
                         player->NotifyAnimationGraph("MCO_EndAnimation");
                         PlayIdleAnimation(player, PowerBash);
-                    } else if (PowerH2H->conditions.IsTrue(player, player)) {
+                    } else if (PowerH2H && PowerH2H->conditions.IsTrue(player, player)) {
                         logger::info("PowerH2H condition is true.");
                         player->NotifyAnimationGraph("MCO_EndAnimation");
                         PlayIdleAnimation(player, PowerH2H);
                     } else {
-                        if (Dodge->conditions.IsTrue(player, player)) {
+                        if (Dodge && Dodge->conditions.IsTrue(player, player)) {
                             logger::info("Dodge condition is true.");
                             player->NotifyAnimationGraph("MCO_EndAnimation");
                             PlayIdleAnimation(player, Dodge);
@@ -522,7 +513,7 @@ RE::BSEventNotifyControl AttackStateManager::ProcessEvent(RE::InputEvent* const*
                             }
                             if (Settings::bEnableDirectionalAttack) {
                                 PerformAction(PowerRight, player);
-                            } else {
+                            } else if (PowerNormal) {
                                 PlayIdleAnimation(player, PowerNormal);
                             }
                          
@@ -541,11 +532,11 @@ RE::BSEventNotifyControl AttackStateManager::ProcessEvent(RE::InputEvent* const*
                         player->GetGraphVariableBool("BFCO_HasCombo", hasCombo);
                         if (hasCombo) {
                             player->NotifyAnimationGraph("MCO_EndAnimation");
-                            if (SprintPower->conditions.IsTrue(player, player)) {
+                            if (SprintPower && SprintPower->conditions.IsTrue(player, player)) {
                                 PlayIdleAnimation(player, SprintPower);
-                            } else if (PowerBash->conditions.IsTrue(player, player)) {
+                            } else if (PowerBash && PowerBash->conditions.IsTrue(player, player)) {
                                 PlayIdleAnimation(player, PowerBash);
-                            } else {
+                            } else if (ComboAttackE) {
                                 player->NotifyAnimationGraph("BFCOAttackStart_Comb");
                                 PlayIdleAnimation(player, ComboAttackE);
                             }
@@ -556,13 +547,13 @@ RE::BSEventNotifyControl AttackStateManager::ProcessEvent(RE::InputEvent* const*
                         }
                         return RE::BSEventNotifyControl::kContinue;
                     }
-                    else if(SprintPower->conditions.IsTrue(player, player)) {
+                    else if(SprintPower && SprintPower->conditions.IsTrue(player, player)) {
                         player->NotifyAnimationGraph("MCO_EndAnimation");
                         PlayIdleAnimation(player, SprintPower);
-                    } else if (PowerBash->conditions.IsTrue(player, player)) {
+                    } else if (PowerBash && PowerBash->conditions.IsTrue(player, player)) {
                         player->NotifyAnimationGraph("MCO_EndAnimation");
                         PlayIdleAnimation(player, PowerBash);
-                    }  else {
+                    }  else if (ComboAttackE) {
                         player->NotifyAnimationGraph("MCO_EndAnimation");
                         player->NotifyAnimationGraph("BFCOAttackStart_Comb");
                         PlayIdleAnimation(player, ComboAttackE);
@@ -584,7 +575,7 @@ RE::BSEventNotifyControl AttackStateManager::ProcessEvent(RE::InputEvent* const*
                     if (isStrong == 1) {
                         player->SetGraphVariableInt("NEW_BFCO_IsNormalAttacking", 1);
                         player->SetGraphVariableInt("NEW_BFCO_IsPowerAttacking", 0);
-                        if (AutoAA->conditions.IsTrue(player, player)) {
+                        if (AutoAA && AutoAA->conditions.IsTrue(player, player)) {
                             logger::info("AutoAA triggered by held condition is true.");
                             player->NotifyAnimationGraph("MCO_EndAnimation");
                             PlayIdleAnimation(player, AutoAA);
@@ -606,7 +597,7 @@ RE::BSEventNotifyControl AttackStateManager::ProcessEvent(RE::InputEvent* const*
                         }
                     }
                     if (isRangedWeapon) {
-                        if (AutoAABow->conditions.IsTrue(player, player)) {
+                        if (AutoAABow && AutoAABow->conditions.IsTrue(player, player)) {
                             logger::info("AutoAA triggered by bow held condition is true.");
                             player->NotifyAnimationGraph("MCO_EndAnimation");
                             PlayIdleAnimation(player, AutoAABow);
@@ -649,7 +640,6 @@ RE::BSEventNotifyControl GlobalControl::AnimationEventHandler::ProcessEvent(
     auto player = RE::PlayerCharacter::GetSingleton();
     const std::string_view eventName = a_event->tag;
     if (a_event && a_event->holder && a_event->holder->IsPlayerRef()) {
-        auto* AutoAA = GetIdleByFormID(0x83A, pluginName);
        
         if (eventName == "Bfco_AttackStartFX") {
             player->SetGraphVariableInt("NEW_BFCO_IsNormalAttacking", 0);
